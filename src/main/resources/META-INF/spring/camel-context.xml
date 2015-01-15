@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:camel="http://camel.apache.org/schema/spring"
+       xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+
+	<bean id="testdb" class="com.mysql.jdbc.jdbc2.optional.MysqlDataSource">
+                <property name="url" value="jdbc:mysql://localhost:3306/restdb(db_name)"/>
+                <property name="user" value="root"/>
+                <property name="password" value="XXXXXXXXXX(db passowrd)"/>
+        </bean>
+
+	<bean id="sql" class="org.apache.camel.component.sql.SqlComponent">
+                <property name="DataSource" ref="testdb"/>
+        </bean>
+  <camel:camelContext trace="true"  xmlns="http://camel.apache.org/schema/spring"  >
+ 
+	<propertyPlaceholder id="placeholder" location="classpath:sql.properties"/>
+
+
+
+ 	<route>
+      		<from uri="restlet:http://localhost:8080/test/{userId}?restletMethods=GET,PUT,DELETE,POST" />
+           	<to uri="direct:match" />
+	</route>
+
+	<route id="choice">
+ 		<from uri="direct:match" />         
+        	<convertBodyTo type="java.lang.String" />
+       		<log message="The converted string - ${body}"/>
+        	
+          	<choice>
+ 
+              		<when>
+                                 <simple>${header.CamelHttpMethod} == 'GET'</simple>
+					
+                                     <log message="Header named  - ${header.userId}"/>
+
+                                              <to uri="sql:{{sql.getData}}" /> 
+              		</when>
+
+                     <when>
+                                 <simple>${header.CamelHttpMethod} == 'PUT'</simple>
+
+                                                  <to uri="sql:{{sql.putData}}" /> 
+                                        <setBody>
+                                                <simple>"Request for put data"</simple>
+                                        </setBody>
+                        </when>
+
+			<when>
+                                 <simple>${header.CamelHttpMethod} == 'DELETE'</simple>
+
+                                              <to uri="sql:{{sql.delData}}" /> 
+                        </when>
+
+
+                        <when>
+                                 <simple>${header.CamelHttpMethod} == 'POST'</simple>
+
+                                              <to uri="sql:{{sql.postData}}" />
+                        </when>
+
+
+
+              		<otherwise>
+                 		<setBody>
+                          		<simple>"Bad Request"</simple>
+                      		</setBody>
+              		</otherwise>
+         	</choice>
+      			<log message="The return value contains ${body}"/>
+   	</route>
+
+
+ 
+</camel:camelContext>
+
+
+</beans>
